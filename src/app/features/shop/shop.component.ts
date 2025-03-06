@@ -34,6 +34,7 @@ import { FormsModule } from '@angular/forms';
 export class ShopComponent implements OnInit {
   private shopService = inject(ShopService);
   private dialogService = inject(MatDialog);
+  
   products?: Pagination<Product>
   shopParams = new ShopParams();
   sortOptions = [
