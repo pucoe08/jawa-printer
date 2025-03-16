@@ -2,7 +2,7 @@ import { inject, Injectable, signal } from '@angular/core';
 import { environment } from '../../../environments/environment';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Address, User } from '../../shared/models/user';
-import { map } from 'rxjs';
+import { map, tap } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
@@ -12,25 +12,12 @@ export class AccountService {
   private http = inject(HttpClient);
   currentUser = signal<User | null>(null);
 
-  dummyUser: User = {
-    firstName: "pankaj",
-    lastName: "kumar",
-    email: "pucoe07@gmail.com",
-    address: {
-      line1: "string1",
-      line2: "string2",
-      city: "string3",
-      state: "string4",
-      country: "string5",
-      postalCode: 1
-    }
 
-  }
 
   login(values: any) {
     let params = new HttpParams();
     params = params.append('useCookies', true);
-    return this.http.post(this.baseUrl + 'login', values, { params });
+    return this.http.post<User>(this.baseUrl + 'login', values, { params });
   }
 
   register(values: any) {
@@ -40,20 +27,26 @@ export class AccountService {
   getUserInfo() {
     return this.http.get<User>(this.baseUrl + 'account/user-info').pipe(
       map(user => {
-        console.log(user)
-          this.currentUser.set(this.dummyUser);  // for-test
-          //this.currentUser.set(user);
-        return user;
+        this.currentUser.set(user);
+        return this.currentUser;
       })
     )
   }
 
   logout() {
-    return this.http.post(this.baseUrl + 'logout', {})
+    return this.http.post(this.baseUrl + 'account/logout', {})
   }
 
   updateAddress(address: Address) {
-    return this.http.put(this.baseUrl + 'account/address', address);
+    return this.http.post(this.baseUrl + 'account/address', address).pipe(
+      // map & tap r similar ..tap is more appropriate to use in case we r not interfering 
+      // with return (address variable here) although we want to make other changes ("currentUser" signal here)
+      tap(() =>
+        this.currentUser.update(user => {
+          if (user) user.address = address;
+          return user;
+        })
+      ))
   }
 
   getAuthState() {

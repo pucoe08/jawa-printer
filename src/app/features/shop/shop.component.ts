@@ -34,7 +34,7 @@ import { FormsModule } from '@angular/forms';
 export class ShopComponent implements OnInit {
   private shopService = inject(ShopService);
   private dialogService = inject(MatDialog);
-  
+
   products?: Pagination<Product>
   shopParams = new ShopParams();
   sortOptions = [
@@ -95,15 +95,13 @@ export class ShopComponent implements OnInit {
 
   getProducts() {
     this.shopService.getProducts(this.shopParams).subscribe({
-      next: response => 
-       { console.log(response),
-        this.products = response},
+      next: response => { this.products = response },
       error: err => console.log(err),
-    });5
+    }); 5
   }
 
-  onSearchChange(){
-    this.shopParams.pageNumber=1;
+  onSearchChange() {
+    this.shopParams.pageNumber = 1;
     this.getProducts();
   }
 

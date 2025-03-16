@@ -35,14 +35,14 @@ export class HeaderComponent {
 
   logout() {
     // for-test
-    this.accountService.currentUser.set(null);
-    this.router.navigateByUrl('/');
-    /*   this.accountService.logout().subscribe({
+    //this.accountService.currentUser.set(null);
+    //this.router.navigateByUrl('/');
+       this.accountService.logout().subscribe({
         next:()=>{
           this.accountService.currentUser.set(null);
           this.router.navigateByUrl('/');
         }
-      }); */
+      }); 
   }
 
 }

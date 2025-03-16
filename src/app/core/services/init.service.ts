@@ -16,7 +16,7 @@ export class InitService {
     //forkjoin wait for multiple observables to complete & return latest values as an array
     return forkJoin({
       cart:cart$,
-      user: this.accountService.getUserInfo()
+       user: this.accountService.getUserInfo()
     });
   }
 }
