@@ -15,7 +15,9 @@ import { CheckoutDeliveryComponent } from "./checkout-delivery/checkout-delivery
 import { CheckoutReviewComponent } from "./checkout-review/checkout-review.component";
 import { CartService } from '../../core/services/cart.service';
 import { CurrencyPipe } from '@angular/common';
-import{MatProgressSpinnerModule} from '@angular/material/progress-spinner';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { OrderToCreate, ShippingAddress } from '../../shared/models/order';
+import { OrderService } from '../../core/services/order.service';
 
 @Component({
   selector: 'app-checkout',
@@ -41,6 +43,7 @@ export class CheckoutComponent implements OnInit, OnDestroy {
   paymentElement?: StripePaymentElement;
   private snackbar = inject(SnackbarService);
   private accountService = inject(AccountService);
+  private orderService = inject(OrderService);
   cartService = inject(CartService);
   saveAddress = false;
   completitionStatus = signal<{ address: boolean, card: boolean, delivery: boolean }>(
@@ -61,7 +64,7 @@ export class CheckoutComponent implements OnInit, OnDestroy {
       this.paymentElement = await this.stripeService.createPaymentElement();
       this.paymentElement.mount('#payment-element');
       this.paymentElement.on('change', this.handlePaymentChange);
-    } catch (error: any) {
+    } catch ( error:any) {
       this.snackbar.error(error.message)
     }
   }
@@ -107,7 +110,7 @@ export class CheckoutComponent implements OnInit, OnDestroy {
   async onStepChange(event: StepperSelectionEvent) {
     if (event.selectedIndex === 1) {
       if (this.saveAddress) {
-        const address = await this.getAddressFromStripeAddress();
+        const address = await this.getAddressFromStripeAddress() as Address;
         //when we dont to subscribe to observable but want firstvalue of observable
         address && firstValueFrom(this.accountService.updateAddress(address));
       }
@@ -126,12 +129,22 @@ export class CheckoutComponent implements OnInit, OnDestroy {
     try {
       if (this.confirmationToken) {
         const result = await this.stripeService.confirmPayment(this.confirmationToken);
-        if (result.error) {
-          throw new Error(result.error.message);
+
+        if (result.paymentIntent?.status === 'succeeded') {
+          const order = await this.createOrderModel();
+          const orderResult = await firstValueFrom(this.orderService.createOrder(order));
+          if (orderResult) {
+            this.orderService.orderComplete = true;
+            this.cartService.deleteCart();
+            this.cartService.selectedDelivery.set(null);
+            this.router.navigateByUrl('/checkout/success')
+          } else {
+            throw new Error('Order Creation Failed')
+          }
+        } else if (result.error) {
+          throw new Error(result.error.message)
         } else {
-          this.cartService.deleteCart();
-          this.cartService.selectedDelivery.set(null);
-          this.router.navigateByUrl('/checkout/success')
+          throw new Error('Something went wrong')
         }
       }
     } catch (error: any) {
@@ -140,15 +153,39 @@ export class CheckoutComponent implements OnInit, OnDestroy {
     } finally {
       this.loading = false;
     }
+  }
+
+  private async createOrderModel(): Promise<OrderToCreate> {
+    const cart = this.cartService.cart();
+    const shippingAddress = await this.getAddressFromStripeAddress() as ShippingAddress;
+    const card = this.confirmationToken?.payment_method_preview.card;
+
+    if (!cart?.id || !cart.deliveryMethodId || !card || !shippingAddress) {
+      throw new Error("Problem Creating Order");
+    }
+    return {
+      cartId: cart.id,
+      paymentSummary: {
+        last4: +card.last4,
+        brand: card.brand,
+        expMonth: card.exp_month,
+        expYear: card.exp_year,
+      },
+      deliveryMethodId: cart.deliveryMethodId,
+      shippingAddress: shippingAddress
+    }
 
   }
 
 
-  private async getAddressFromStripeAddress(): Promise<Address | null> {
+  // Address and shippingaddress r nearly same except 'name' is extra field in shippingaddress
+  // ...which does not affect when we return as address 
+  private async getAddressFromStripeAddress(): Promise<Address | ShippingAddress | null> {
     const result = await this.addressElement?.getValue();
     const address = result?.value.address;
     if (address) {
       return {
+        name: result.value.name,
         line1: address.line1,
         line2: address.line2 || undefined,
         city: address.city,
