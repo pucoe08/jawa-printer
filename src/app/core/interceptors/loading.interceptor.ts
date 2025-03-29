@@ -10,8 +10,8 @@ export const loadingInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(req).pipe(
     delay(500),
-    finalize(() => {
-      busyService.idle();
+    finalize(() => {      //finalize will be called after observable has emitted last value 
+      busyService.idle(); // i.e. either observable is complete, error or unsubscribed
     })
   );
 

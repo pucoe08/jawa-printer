@@ -10,7 +10,7 @@ export const authGuard: CanActivateFn = (route, state) => {
   if (accountService.currentUser()) {
     return of(true);
   } else {
-    // in auth gurad we need not subscribe to observable ..route guard automatically do it for us
+    // in auth gurad we need not subscribe to observable ..route guard automatically do it and wait till observable gets complete
     return accountService.getAuthState().pipe(
       map(auth => {
         if (auth.isAuthenticated) {
